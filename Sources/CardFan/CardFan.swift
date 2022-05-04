@@ -1,6 +1,6 @@
 //
 //  CardFan.swift
-//  
+//
 //
 //  Created by German Azcona on 4/25/22.
 //
@@ -20,19 +20,23 @@ public class CardFan: UIView, UIScrollViewDelegate {
     public var maxXTranslate: CGFloat = 40 { didSet { reaplyCardsTransforms() } }
 
     /// How much are cards rotated (in radians) as they go left/right.
-    public var maxRotation: CGFloat = -.pi/20 { didSet { reaplyCardsTransforms() } }
+    public var maxRotation: CGFloat = -.pi/20.0 { didSet { reaplyCardsTransforms() } }
+
+    /// It applies horizontal offset corrections as the user scrolls through the stack of cards so
+    /// when the top card is the left most card, it is aligned to the CardFan view's left edge and
+    /// when the top card is the right most card, it is aligned to the CardFan view's right edge.
+    public var appliesAlignmentCorrection: Bool = false { didSet { reaplyCardsTransforms() } }
 
     /// The index of the card that's visible
     public private(set) var currentIndex: Int = 0
 
     /// The array of views that will be used as cards.
+    /// Make sure the views doesn't contain height and width constraints.
     public var cardViews: [UIView] = [] {
         willSet {
-            // remove current
             cardViews.forEach { $0.removeFromSuperview() }
         }
         didSet {
-            // add new
             cardViews.forEach { card in
                 scrollView.addSubview(card)
             }
@@ -111,23 +115,28 @@ private extension CardFan {
             scrollView.frameLayoutGuide.centerXAnchor.constraint(equalTo: centerXAnchor)
         ])
     }
+    var pageWidth: CGFloat { round(cardSize.width * 1.25) }
+    var pageX: CGFloat { scrollView.frame.width / 2.0 - cardSize.width / 2.0 }
 
     func relayoutCards() {
 
         NSLayoutConstraint.deactivate(cardConstraints)
 
-        let contentWidth = CGFloat(cardViews.count) * cardSize.width
+        let contentWidth = CGFloat(cardViews.count) * pageWidth
         cardConstraints = [
             scrollView.contentLayoutGuide.widthAnchor.constraint(equalToConstant: contentWidth),
             scrollView.contentLayoutGuide.heightAnchor.constraint(equalToConstant: cardSize.height),
-            scrollView.frameLayoutGuide.widthAnchor.constraint(equalToConstant: cardSize.width)
+            scrollView.frameLayoutGuide.widthAnchor.constraint(equalToConstant: pageWidth)
         ]
 
         cardViews.forEach { card in
             cardConstraints.append(card.widthAnchor.constraint(equalToConstant: cardSize.width))
             cardConstraints.append(card.heightAnchor.constraint(equalToConstant: cardSize.height))
             cardConstraints.append(card.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor))
-            cardConstraints.append(card.leftAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leftAnchor))
+            cardConstraints.append(
+                card.leftAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leftAnchor,
+                                           constant: pageX)
+            )
         }
         NSLayoutConstraint.activate(cardConstraints)
     }
@@ -136,13 +145,15 @@ private extension CardFan {
 
         guard cardSize != .zero else { return }
 
-        let offsetPercent = scrollView.contentOffset.x / cardSize.width
+        let offsetPercent = scrollView.contentOffset.x / pageWidth
         let currentIndexFloat = round(offsetPercent)
         let currentIndex = Int(currentIndexFloat)
         self.currentIndex = max(0, min(cardViews.endIndex-1, currentIndex))
 
+        print("offsetPercent: \(offsetPercent) currentIndexFloat \(currentIndexFloat) self.currentIndex \(self.currentIndex)")
         if offsetPercent == currentIndexFloat || abs(offsetPercent - CGFloat(indexForCardBeingSwipped)) > 1.0 {
             indexForCardBeingSwipped = currentIndex
+            print("indexForCardBeingSwipped: \(indexForCardBeingSwipped)")
         }
 
         cardViews.enumerated().forEach { index, cardView in
@@ -190,49 +201,27 @@ private extension CardFan {
         hideNotVisibleCards()
     }
 
-
     // MARK: - Transition functions
 
     /// Converts a float with values between [-1, 1] to another float with values between [-1, 1].
     /// On -1, 1 and 0, the values are going to be the same.
     /// But all other values will vary by adding curves depending on easeOut function used.
     func easedOut(progress: CGFloat) -> CGFloat {
-        //easeOutSigmoid(x: progress)
-        //easeOutCubic(x: progress)
-        easeOutSine(x: progress)
-    }
-
-    func easeOutSine(x: CGFloat) -> CGFloat {
-        let sign: CGFloat = x < 0 ? -1 : 1
-        return sin((abs(x) * .pi) / 2.0) * sign
-    }
-
-    func easeOutCubic(x: CGFloat) -> CGFloat {
-        let sign: CGFloat = x < 0 ? -1 : 1
-        return (1.0 - pow(1.0 - abs(x), 3.0)) * sign
-    }
-
-    /// sigmoid function: https://dhemery.github.io/DHE-Modules/technical/sigmoid/
-    /// You can use this to progressively applies more or less transformations depending
-    /// on what part of the transition we are.
-    // swiftlint:disable:next identifier_name
-    func easeOutSigmoid(x: CGFloat, k: CGFloat = -0.5) -> CGFloat {
-        let x: CGFloat = x
-        // swiftlint:disable:next identifier_name
-        let k: CGFloat = max(-1.0, min(1.0, k)) // cap it from -1 to 1.
-        return (x - k * x) / (k - 2 * k * abs(x) + 1)
+        EaseOutFunctions.easeOutSine(progress)
     }
 
     /// This is extra X translate so the first and last card align to the CardFan view as the user swipes left/right.
     func extraTranslate() -> CGFloat {
 
+        guard appliesAlignmentCorrection else { return 0 }
+
         // this only works if there are several card. Otherwise we will be dividing by Zero on extraXTranslateProgress.
         guard cardViews.count > 1 else { return 0 }
 
         // this is extra X translate so the first and last card align to the CardFan view.
-        let maxExtraXTranslate: CGFloat = scrollView.frame.origin.x * 2.0
+        let maxExtraXTranslate: CGFloat = (scrollView.frame.origin.x+pageX) * 2.0
         let extraXTranslateProgress = 0.5 -
-            scrollView.contentOffset.x / (scrollView.contentSize.width - scrollView.frame.width)
+            scrollView.contentOffset.x / (scrollView.contentSize.width - pageWidth)
         let extraXTranslate = -maxExtraXTranslate*extraXTranslateProgress
         return extraXTranslate
     }
@@ -241,8 +230,8 @@ private extension CardFan {
         cardViews
             .enumerated()
             .sorted {
-                let distanceToCurrentOffset1 = scrollView.contentOffset.x - CGFloat($0.0) * cardSize.width
-                let distanceToCurrentOffset2 = scrollView.contentOffset.x - CGFloat($1.0) * cardSize.width
+                let distanceToCurrentOffset1 = scrollView.contentOffset.x - CGFloat($0.0) * pageWidth
+                let distanceToCurrentOffset2 = scrollView.contentOffset.x - CGFloat($1.0) * pageWidth
                 return abs(distanceToCurrentOffset1) > abs(distanceToCurrentOffset2)
             }
             .forEach { _, cardView in
@@ -254,8 +243,8 @@ private extension CardFan {
         cardViews
             .enumerated()
             .forEach { index, cardView in
-                let distanceToOffset = abs(scrollView.contentOffset.x - cardSize.width * CGFloat(index))
-                let maxDistance = abs(cardSize.width * CGFloat(numberOfVisibleSideCards+1))
+                let distanceToOffset = abs(scrollView.contentOffset.x - pageWidth * CGFloat(index))
+                let maxDistance = abs(pageWidth * CGFloat(numberOfVisibleSideCards+1))
                 cardView.isHidden = distanceToOffset >= maxDistance
             }
     }
@@ -266,9 +255,6 @@ private extension CardFan {
 
         cardViewStylizer?(cardView, index, progress)
     }
-}
-
-private extension CardFan {
 
     // MARK: - Standard Transforms
     // Standard transitions are those that are slighlty offset, scaled and rotated as the cards go away
@@ -298,8 +284,8 @@ private extension CardFan {
     /// Progress percentage (between -1 and 1) to be applied to any transform
     func standardTransformProgress(for cardIndex: Int) -> CGFloat {
 
-        let cardPosition = CGFloat(cardIndex) * cardSize.width
-        let maxDistance = cardSize.width * CGFloat(numberOfVisibleSideCards)
+        let cardPosition = CGFloat(cardIndex) * pageWidth
+        let maxDistance = pageWidth * CGFloat(numberOfVisibleSideCards)
         let distanceToCurrent = scrollView.contentOffset.x - cardPosition
         let progress = distanceToCurrent / maxDistance
         let cappedProgress = max(-1, min(1, progress))
@@ -326,15 +312,14 @@ private extension CardFan {
     }
 
     func standardRotation(for progress: CGFloat) -> CGFloat {
-        let easedOutProgress = easedOut(progress: progress)
-        return maxRotation * easedOutProgress
+        maxRotation * progress
     }
 
     // MARK: - Swipe Transform, part 1
 
     func applyFirstSwipeTransform(to transform: CGAffineTransform, cardIndex index: Int) -> CGAffineTransform {
 
-        let offsetPercent = scrollView.contentOffset.x / cardSize.width
+        let offsetPercent = scrollView.contentOffset.x / pageWidth
         let progressForFullSwipe = offsetPercent - CGFloat(indexForCardBeingSwipped)
 
         let progressForHalfSwipe = progressForFullSwipe / 0.5
@@ -357,7 +342,7 @@ private extension CardFan {
     }
 
     func firstSwipeTransform(for progress: CGFloat) -> CGFloat {
-        -(cardSize.width * 0.85) * progress
+        -(pageWidth * 0.85) * progress
     }
 
     func firstSwipeScale(for progress: CGFloat) -> CGFloat {
@@ -372,7 +357,7 @@ private extension CardFan {
 
     func applySecondSwipeTransform(to transform: CGAffineTransform, cardIndex index: Int) -> CGAffineTransform {
 
-        let offsetPercent = scrollView.contentOffset.x / cardSize.width
+        let offsetPercent = scrollView.contentOffset.x / pageWidth
         let progressForFullSwipe = offsetPercent - CGFloat(indexForCardBeingSwipped)
         let sign: CGFloat = progressForFullSwipe < 0 ? -1 : 1
 

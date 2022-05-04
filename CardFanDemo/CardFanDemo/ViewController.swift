@@ -16,11 +16,13 @@ class ViewController: UIViewController {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
 
-        cardFan.cardSize = .init(width: 200, height: 350)
+        cardFan.cardSize = .init(width: 255, height: 340)
         cardFan.minCardScale = 0.5
         cardFan.maxXTranslate = 80
         cardFan.maxRotation = -.pi/12
         cardFan.numberOfVisibleSideCards = 5
+        cardFan.subviews.first?.backgroundColor = .red.withAlphaComponent(0.2)
+        cardFan.appliesAlignmentCorrection = true
         cardFan.cardViews = [
             cardView(backgroundColor: .systemPink),
             cardView(backgroundColor: .systemRed),
@@ -41,11 +43,10 @@ class ViewController: UIViewController {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
         view.backgroundColor = backgroundColor
-        view.layer.borderColor = UIColor.white.cgColor
+        view.layer.borderColor = UIColor.black.cgColor
         view.layer.borderWidth = 1
-        view.layer.cornerRadius = 20
+        view.layer.cornerRadius = 30
+        view.layer.cornerCurve = .continuous
         return view
     }
-
 }
-
