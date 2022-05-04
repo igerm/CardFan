@@ -17,7 +17,7 @@
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="TJ4-GA-Ggr" customClass="CardFan" customModule="CardFan">
-                                <rect key="frame" x="57" y="44" width="300" height="400"/>
+                                <rect key="frame" x="57" y="253" width="300" height="400"/>
                                 <color key="backgroundColor" systemColor="systemYellowColor"/>
                                 <constraints>
                                     <constraint firstAttribute="height" constant="400" id="BQP-UN-j14"/>
@@ -29,7 +29,7 @@
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
                             <constraint firstItem="TJ4-GA-Ggr" firstAttribute="centerX" secondItem="6Tk-OE-BBY" secondAttribute="centerX" id="IuE-9G-ojT"/>
-                            <constraint firstItem="TJ4-GA-Ggr" firstAttribute="top" secondItem="6Tk-OE-BBY" secondAttribute="top" id="VWf-lG-Bqm"/>
+                            <constraint firstItem="TJ4-GA-Ggr" firstAttribute="centerY" secondItem="6Tk-OE-BBY" secondAttribute="centerY" id="Oag-Hy-x0z"/>
                         </constraints>
                     </view>
                     <connections>
