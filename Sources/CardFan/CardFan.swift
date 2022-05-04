@@ -150,10 +150,8 @@ private extension CardFan {
         let currentIndex = Int(currentIndexFloat)
         self.currentIndex = max(0, min(cardViews.endIndex-1, currentIndex))
 
-        print("offsetPercent: \(offsetPercent) currentIndexFloat \(currentIndexFloat) self.currentIndex \(self.currentIndex)")
         if offsetPercent == currentIndexFloat || abs(offsetPercent - CGFloat(indexForCardBeingSwipped)) > 1.0 {
             indexForCardBeingSwipped = currentIndex
-            print("indexForCardBeingSwipped: \(indexForCardBeingSwipped)")
         }
 
         cardViews.enumerated().forEach { index, cardView in
